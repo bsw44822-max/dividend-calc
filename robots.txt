@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://bsw44822-max.github.io/dividend-calc/sitemap.xml
