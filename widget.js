@@ -143,6 +143,31 @@
     }).sort(function (a, b) { return (b.post - a.post) || (a.cy - b.cy); });
   }
 
+  // 담은 줄 하나의 투자금(원) · 주 수면 주가×주 수(없으면 세전 배당금 ÷ 배당률) · goal과 avgRate가 같이 씀
+  function moneyOf(it, row, p, fx) {
+    if (row.mode === 'sh') {
+      var cur = norm(it).cur;
+      if (it.px > 0) { return row.v * it.px * (cur === 'USD' ? fx : 1); }
+      if (it.r > 0) { return p.pre / (it.r / 100); }
+      return 0;
+    }
+    return row.v;
+  }
+
+  // 담은 종목 평균 배당률(세전, %) = 1년 세전 배당금 합 ÷ 투자금 합 × 100 · 소수 첫째 자리 · 계산 못 한 줄은 빼고 skipped로 셈
+  function avgRate(basket, items, fx) {
+    var pre = 0, money = 0, skipped = 0;
+    (basket || []).forEach(function (row) {
+      var it = findItem(row, items); if (!it) { return; }
+      var p = pay(it, { mode: row.mode, v: row.v }, fx);
+      var m = p ? moneyOf(it, row, p, fx) : 0;
+      if (!p || !(m > 0)) { skipped++; return; }
+      pre += p.pre; money += m;
+    });
+    if (!(money > 0)) { return { rate: null, pre: 0, money: 0, skipped: skipped }; }
+    return { rate: Math.round(pre / money * 1000) / 10, pre: pre, money: money, skipped: skipped };
+  }
+
   // 한 달 평균 세후 target원이 되려면 필요한 총 투자금 · 지금 담은 비율 그대로 · 1만원 단위 올림
   function goal(basket, items, fx, targetMonthlyPost) {
     if (!(targetMonthlyPost > 0)) { return null; }
@@ -151,11 +176,7 @@
       var it = findItem(row, items); if (!it) { return; }
       var p = pay(it, { mode: row.mode, v: row.v }, fx); if (!p) { return; }
       postY += p.post;
-      if (row.mode === 'sh') {
-        var cur = norm(it).cur;
-        if (it.px > 0) { money += row.v * it.px * (cur === 'USD' ? fx : 1); }
-        else if (it.r > 0) { money += p.pre / (it.r / 100); }
-      } else { money += row.v; }
+      money += moneyOf(it, row, p, fx);
     });
     if (!(postY > 0) || !(money > 0)) { return null; }
     var need = money * (targetMonthlyPost * 12) / postY;
@@ -164,11 +185,12 @@
 
   function filter(items, f) {
     f = f || {};
-    var cy = f.cy || [], mk = f.mk || [], sc = f.sc || [], q = String(f.q || '').trim().toLowerCase();
+    var cy = f.cy || [], mk = f.mk || [], sc = f.sc || [], q = String(f.q || '').trim().toLowerCase(), minR = Number(f.minR) > 0 ? Number(f.minR) : 0;
     return (items || []).filter(function (it) {
       if (cy.length && cy.indexOf(it.cy) < 0) { return false; }
       if (mk.length && mk.indexOf(it.mk) < 0) { return false; }
       if (sc.length && sc.indexOf(it.sc) < 0) { return false; }
+      if (minR > 0 && !(it.r >= minR)) { return false; }
       if (q) {
         var hay = ((it.nm || '') + ' ' + (it.fn || '') + ' ' + (it.tk || '')).toLowerCase();
         if (hay.indexOf(q) < 0) { return false; }
@@ -191,7 +213,7 @@
   var api = {
     TAX: TAX, LIMIT: LIMIT, OVER_MSG: OVER_MSG,
     rnd: rnd, num: num, won: won,
-    pay: pay, calendar: calendar, summary: summary,
+    pay: pay, avgRate: avgRate, calendar: calendar, summary: summary,
     bySector: bySector, byCycle: byCycle, goal: goal,
     filter: filter, rank: rank
   };
@@ -337,8 +359,7 @@ function cyText(it){
   return n;
 }
 function mkOf(it){ return (it && !it.custom && it.mk === 'us') ? 'us' : 'kr'; }
-function isOvr(it){ return !!(it && it.custom && /^o_/.test(String(it.tk))); }
-function listItems(){ return allItems().filter(function(x){ return !isOvr(x); }); }
+function listItems(){ return allItems(); }
 function showCode(it){ if (!it || it.custom) { return false; } if (it.tkReal === false) { return false; } if (it.tkReal === true) { return true; } return !/^n/.test(String(it.tk)); }
 function rhText(s){ return s === '최근 지급분 1년 환산' ? '최근 한 번 받은 돈 × 1년 횟수' : s; }
 function dateRange(){
@@ -358,7 +379,7 @@ function monthDates(it){
 }
 
 // ---------- 상태 ----------
-var S = { sel: 'SCHD', mode: 'amt', amt: DEF_AMT, sh: DEF_SH, ovr: 0, ovrMk: 'kr', basket: [], customs: [], cyOn: {}, mkOn: {}, scOn: {}, q: '', sort: 'rdesc', shown: 20, open: null, month: -1 };
+var S = { sel: 'SCHD', mode: 'amt', amt: DEF_AMT, sh: DEF_SH, minR: 0, basket: [], customs: [], cyOn: {}, mkOn: {}, scOn: {}, q: '', sort: 'rdesc', shown: 20, open: null, month: -1 };
 var customItems = [];
 function loadState(){
   try {
@@ -368,8 +389,8 @@ function loadState(){
     if (o.m === 'amt' || o.m === 'sh') { S.mode = o.m; }
     if (o.a > 0) { S.amt = Number(o.a); }
     if (o.h > 0) { S.sh = Number(o.h); }
-    if (Array.isArray(o.c)) { S.customs = o.c.filter(function(c){ return c && c.key && c.nm && c.r > 0 && Array.isArray(c.mo) && c.mo.length; }); }
-    if (Array.isArray(o.b)) { S.basket = o.b.filter(function(b){ return b && b.key && (b.mode === 'amt' || b.mode === 'sh') && b.v > 0; }).map(function(b){ return { key: String(b.key), mode: b.mode, v: Number(b.v) }; }); }
+    if (Array.isArray(o.c)) { S.customs = o.c.filter(function(c){ return c && c.key && !/^o_/.test(String(c.key)) && c.nm && c.r > 0 && Array.isArray(c.mo) && c.mo.length; }); }
+    if (Array.isArray(o.b)) { S.basket = o.b.filter(function(b){ return b && b.key && !/^o_/.test(String(b.key)) && (b.mode === 'amt' || b.mode === 'sh') && b.v > 0; }).map(function(b){ return { key: String(b.key), mode: b.mode, v: Number(b.v) }; }); }
   } catch (e) {}
 }
 function saveState(){
@@ -402,7 +423,6 @@ function start(){
   root.removeAttribute('style');
   loadState(); rebuildCustoms(); cleanBasket();
   if (!itemOf(S.sel)) { S.sel = itemOf('SCHD') ? 'SCHD' : (DATA.items[0] ? DATA.items[0].tk : ''); }
-  S.ovrMk = mkOf(itemOf(S.sel));
   build();
   renderAll();
   tryMove();
@@ -438,18 +458,9 @@ function build(){
 
   var br = add(root, h('div', 'bdgj4-btns'));
   E.bDet = btn('', '자세히(주 수로 넣기, 목표 금액)', function(){ var open = E.det.style.display === 'none'; E.det.style.display = open ? '' : 'none'; E.bDet.setAttribute('aria-expanded', open ? 'true' : 'false'); }); E.bDet.setAttribute('aria-expanded', 'false'); add(br, E.bDet);
-  E.bOvr = btn('', '배당률 직접 넣기', function(){ var open = E.ovrBox.style.display === 'none'; E.ovrBox.style.display = open ? '' : 'none'; if (open) { E.ovrIn.focus(); } }); add(br, E.bOvr);
   E.bAdd = btn('bdgj4-pri', '담기', addQuick); add(br, E.bAdd);
   add(root, h('div', 'bdgj4-hint', '담으면 1~12월 내 배당 달력에 들어가요.'));
   E.addMsg = add(root, h('div', 'bdgj4-hint'));
-
-  E.ovrBox = add(root, h('div', 'bdgj4-box')); E.ovrBox.style.display = 'none';
-  var lo = add(E.ovrBox, h('label', 'bdgj4-lab', '내가 정한 1년 배당률(세전, %)')); lo.setAttribute('for', 'bdgj4-ovr'); lo.style.marginTop = '0';
-  E.ovrIn = add(E.ovrBox, h('input', 'bdgj4-inp')); E.ovrIn.id = 'bdgj4-ovr'; E.ovrIn.type = 'text'; E.ovrIn.setAttribute('inputmode', 'decimal'); E.ovrIn.setAttribute('placeholder', '예: 4.5');
-  add(E.ovrBox, h('div', 'bdgj4-lab', '국내 / 미국'));
-  E.ovrMkChips = add(E.ovrBox, h('div', 'bdgj4-chips'));
-  E.ovrHint = add(E.ovrBox, h('div', 'bdgj4-hint'));
-  renderOvrMk();
 
   E.det = add(root, h('div', 'bdgj4-box')); E.det.style.display = 'none';
   add(E.det, h('div', 'bdgj4-lab', '넣는 방법')).style.marginTop = '0';
@@ -473,6 +484,8 @@ function build(){
   add(dsc, h('div', 'bdgj4-hint', '커버드콜 ETF는 주식을 들고 옵션을 팔아 배당을 늘린 상품이고, 리츠는 건물 임대료나 부동산 대출 이자로 번 돈을 나눠 주는 상품이에요.'));
   var lq = add(s2, h('label', 'bdgj4-lab', '이름 찾기')); lq.setAttribute('for', 'bdgj4-q2');
   E.q2 = add(s2, h('input', 'bdgj4-inp bdgj4-sm')); E.q2.id = 'bdgj4-q2'; E.q2.type = 'text'; E.q2.setAttribute('autocomplete', 'off'); E.q2.setAttribute('placeholder', '이름이나 코드');
+  var lr = add(s2, h('label', 'bdgj4-lab', '배당률 몇 % 이상만 볼까요')); lr.setAttribute('for', 'bdgj4-minr');
+  E.minR = add(s2, h('input', 'bdgj4-inp bdgj4-sm')); E.minR.id = 'bdgj4-minr'; E.minR.type = 'text'; E.minR.setAttribute('inputmode', 'decimal'); E.minR.setAttribute('autocomplete', 'off'); E.minR.setAttribute('placeholder', '예: 5');
   add(s2, h('div', 'bdgj4-lab', '정렬'));
   E.sortChips = add(s2, h('div', 'bdgj4-chips'));
   E.count = add(s2, h('div', 'bdgj4-hint'));
@@ -487,9 +500,10 @@ function build(){
   add(s5, h('h3', 'bdgj4-h2', '담은 종목'));
   E.bHead = add(s5, h('div', 'bdgj4-hint'));
   E.bList = add(s5, h('div', ''));
+  E.avgLine = add(s5, h('div', 'bdgj4-hint')); E.avgLine.style.display = 'none';
   E.bTools = add(s5, h('div', 'bdgj4-btns'));
   add(E.bTools, btn('', '예시 담기', addExample));
-  E.bClear = add(E.bTools, btn('', '모두 지우기', function(){ S.basket = []; S.customs = []; rebuildCustoms(); fixSel(); saveState(); renderAll(); }));
+  E.bClear = add(E.bTools, btn('', '모두 지우기', function(){ S.minR = 0; S.shown = 20; E.minR.value = ''; S.basket = []; S.customs = []; rebuildCustoms(); fixSel(); saveState(); renderAll(); }));
   E.exNote = add(s5, h('div', 'bdgj4-hint'));
   E.goalBox = add(s5, h('div', 'bdgj4-box'));
   var lg2 = add(E.goalBox, h('label', 'bdgj4-lab', '목표: 담은 종목 그대로, 한 달 평균(세후) 얼마를 받고 싶나요?')); lg2.setAttribute('for', 'bdgj4-g2'); lg2.style.marginTop = '0';
@@ -532,8 +546,8 @@ function build(){
   E.clr = add(f, btn('bdgj4-xs', '저장한 값 지우기', function(){
     if (!clrArm) { clrArm = true; E.clr.textContent = '담은 종목과 넣은 값을 모두 지울까요? 한 번 더 누르면 지워요'; clrTimer = setTimeout(clrDisarm, 6000); return; }
     clrDisarm();
-    clearState(); S.basket = []; S.customs = []; S.amt = DEF_AMT; S.sh = DEF_SH; S.mode = 'amt'; S.sel = itemOf('SCHD') ? 'SCHD' : DATA.items[0].tk; S.ovr = 0; S.ovrMk = mkOf(itemOf(S.sel)); S.month = -1; renderOvrMk();
-    rebuildCustoms(); E.ovrIn.value = ''; renderAll();
+    clearState(); S.basket = []; S.customs = []; S.amt = DEF_AMT; S.sh = DEF_SH; S.mode = 'amt'; S.sel = itemOf('SCHD') ? 'SCHD' : DATA.items[0].tk; S.month = -1; S.minR = 0; S.shown = 20; E.minR.value = '';
+    rebuildCustoms(); renderAll();
   })); E.clr.style.marginTop = '6px';
 
   // 9 아래 고정 띠
@@ -553,7 +567,7 @@ function bindEvents(){
     var v = num(E.a1.value); if (S.mode === 'amt') { if (v > 99999999999) { v = 99999999999; } S.amt = v; } else { if (v > 99999999) { v = 99999999; } S.sh = v; }
     E.a1.value = v ? comma(v) : ''; saveState(); renderQuick();
   });
-  E.ovrIn.addEventListener('input', function(){ var s = String(E.ovrIn.value).replace(/[^0-9.]/g, ''); var x = parseFloat(s); S.ovr = (x > 0 && x <= 1000) ? x : 0; renderQuick(); });
+  E.minR.addEventListener('input', function(){ var x = parseFloat(String(E.minR.value).replace(/[^0-9.]/g, '')); S.minR = x > 0 ? x : 0; S.shown = 20; renderList(); });
   E.g1.addEventListener('input', function(){ var v = num(E.g1.value); E.g1.value = v ? comma(v) : ''; renderGoalQuick(); });
   E.g2.addEventListener('input', function(){ var v = num(E.g2.value); E.g2.value = v ? comma(v) : ''; renderGoalBasket(); });
   E.q2.addEventListener('input', function(){ S.q = E.q2.value; S.shown = 20; renderList(); });
@@ -579,10 +593,6 @@ function renderModeChips(){
   add(E.modeChips, chip('금액으로', S.mode === 'amt', function(){ if (S.mode !== 'amt') { S.mode = 'amt'; S.amt = 0; } saveState(); renderModeChips(); renderQuickInputs(); renderQuick(); }));
   add(E.modeChips, chip('주 수로', S.mode === 'sh', function(){ if (S.mode !== 'sh') { S.mode = 'sh'; S.sh = 0; } saveState(); renderModeChips(); renderQuickInputs(); renderQuick(); }));
 }
-function renderOvrMk(){
-  E.ovrMkChips.innerHTML = '';
-  ['kr', 'us'].forEach(function(m){ add(E.ovrMkChips, chip(MKN[m], S.ovrMk === m, function(){ S.ovrMk = m; renderOvrMk(); renderQuick(); })); });
-}
 function renderQuickInputs(){
   var it = itemOf(S.sel);
   if (document.activeElement !== E.q1) { E.q1.value = it ? it.nm : ''; }
@@ -591,7 +601,7 @@ function renderQuickInputs(){
   E.a1.value = v ? comma(v) : '';
 }
 
-function pickItem(it){ S.sel = it.tk; S.ovrMk = mkOf(it); renderOvrMk(); saveState(); E.sug.style.display = 'none'; E.q1.value = it.nm; renderQuick(); }
+function pickItem(it){ S.sel = it.tk; saveState(); E.sug.style.display = 'none'; E.q1.value = it.nm; renderQuick(); }
 function pickFirst(){
   var q = E.q1.value, it = itemOf(S.sel);
   if (!q.replace(/\s/g, '') || (it && q === it.nm)) { return false; }
@@ -615,23 +625,15 @@ function showSug(){
 
 function quickItems(){
   var it = itemOf(S.sel); if (!it) { return { it: null, items: allItems() }; }
-  if (S.ovr > 0 && S.mode === 'amt') {
-    var cp = {}, k; for (k in it) { if (Object.prototype.hasOwnProperty.call(it, k)) { cp[k] = it[k]; } }
-    cp.r = S.ovr; cp.tx = S.ovrMk === 'us' ? 'us' : 'kr'; cp.mk = S.ovrMk === 'us' ? 'us' : 'kr'; var arr = allItems().map(function(x){ return x.tk === it.tk ? cp : x; });
-    return { it: cp, items: arr };
-  }
   return { it: it, items: allItems() };
 }
 
-function ovrOn(){ return S.ovr > 0 && S.mode === 'amt'; }
-function quickKey(it){ return ovrOn() ? 'o_' + it.tk : it.tk; }
 function renderQuick(){
   var qi = quickItems(), it = qi.it;
   if (!it) { return; }
   var base = itemOf(S.sel) || it;
   var tax = TAXP[it.tx] || '15.4%';
   E.selNote.textContent = base.nm + (base.custom ? '' : ' (' + (MKN[base.mk] || '') + ' ' + base.sc + ', ' + cyText(base) + ')');
-  E.ovrHint.textContent = '고른 종목의 배당률만 바꿔요. 비워 두면 종목의 배당률로 계산해요. 금액으로 넣을 때만 쓰고, 담으면 ' + String.fromCharCode(34) + base.nm + '(내 ' + (S.ovr > 0 ? S.ovr : '4.5') + '%)' + String.fromCharCode(34) + '처럼 따로 들어가요.';
   var v = S.mode === 'amt' ? S.amt : S.sh;
   E.amtHint.textContent = v ? (S.mode === 'amt' ? fmtWon(v) : comma(v) + '주') : (S.mode === 'amt' ? '투자금을 넣어 주세요.' : '주 수를 넣어 주세요.');
   var p = v ? C.pay(it, { mode: S.mode, v: v }, DATA.fx) : null;
@@ -654,9 +656,8 @@ function renderQuick(){
   var notes = []; (it.fl || []).forEach(function(f){ if (FLN[f]) { notes.push(FLN[f] + '.'); } });
   if (it.weq) { notes.push(WEQ_TXT); }
   if (it.cy !== 12 && it.cy !== 52 && it.mo) { notes.push('돈은 ' + monthsText(it) + '에 들어와요. 한 달 평균은 1년 치를 12로 나눈 값이에요.'); }
-  if (S.mode === 'sh' && S.ovr > 0) { notes.push('주 수로 넣을 땐 직접 넣은 배당률을 안 써요.'); }
   if (notes.length) { var nl = add(E.dl, h('span', '', '참고')); nl.style.gridColumn = '1'; var nv = add(E.dl, h('span', '', notes.join(' '))); nv.style.textAlign = 'left'; nv.style.fontWeight = '400'; nv.style.gridColumn = '1 / -1'; }
-  var inb = inBasket(quickKey(base)) >= 0;
+  var inb = inBasket(base.tk) >= 0;
   E.bAdd.textContent = inb ? (S.mode === 'amt' ? '담김 · 금액 바꾸기' : '담김 · 주 수 바꾸기') : '담기';
   renderGoalQuick();
 }
@@ -674,14 +675,6 @@ function addQuick(){
   if (!it) { return; }
   if (!(v > 0)) { E.addMsg.textContent = '먼저 ' + (S.mode === 'amt' ? '투자금' : '주 수') + '을 넣어 주세요.'; return; }
   var key = it.tk, msg = it.nm + ' 담았어요. 담은 종목 ';
-  if (ovrOn() && !it.custom) {
-    key = 'o_' + it.tk;
-    var cu = { key: key, custom: true, nm: it.nm + '(내 ' + S.ovr + '%)', r: S.ovr, mk: S.ovrMk, mo: it.mo.slice(), w: it.w.slice(), pd: (it.pd || []).slice(), tx: S.ovrMk === 'us' ? 'us' : 'kr', sc: it.sc, cy: it.cy, times: it.times };
-    var ci = -1; S.customs.forEach(function(c, k){ if (c.key === key) { ci = k; } });
-    if (ci >= 0) { S.customs[ci] = cu; } else { S.customs.push(cu); }
-    rebuildCustoms();
-    msg = it.nm + ' 담았어요(내 배당률 ' + S.ovr + '%). 담은 종목 ';
-  }
   var i = inBasket(key), b = { key: key, mode: S.mode, v: v };
   if (i >= 0) { S.basket[i] = b; } else { S.basket.push(b); }
   saveState(); E.addMsg.textContent = msg + S.basket.length + '개';
@@ -700,7 +693,7 @@ function renderFilters(){
 }
 function qAmt(){ return (S.mode === 'amt' && S.amt > 0) ? S.amt : DEF_AMT; }
 function renderList(){
-  var f = { cy: keysOn(S.cyOn).map(Number), mk: keysOn(S.mkOn), sc: keysOn(S.scOn), q: S.q };
+  var f = { cy: keysOn(S.cyOn).map(Number), mk: keysOn(S.mkOn), sc: keysOn(S.scOn), q: S.q, minR: S.minR };
   var list = C.rank(C.filter(listItems(), f), S.sort);
   E.count.textContent = '종목 ' + list.length + '개';
   var rg = dateRange();
@@ -829,7 +822,13 @@ function addCustom(){
 }
 
 // ---------- 달력·섹터·띠 ----------
-function renderViews(){ renderCalendar(); renderSector(); renderBand(); }
+function renderAvg(){
+  var a = C.avgRate(validBasket(), allItems(), DATA.fx);
+  if (a.rate === null) { E.avgLine.style.display = 'none'; E.avgLine.textContent = ''; return; }
+  E.avgLine.textContent = '담은 비율대로 평균 배당률(세전) ' + a.rate.toFixed(1) + '%' + (a.skipped > 0 ? ' · ' + a.skipped + '개는 금액을 몰라 뺐어요' : '');
+  E.avgLine.style.display = '';
+}
+function renderViews(){ renderCalendar(); renderSector(); renderBand(); renderAvg(); }
 function renderCalendar(){
   var bk = validBasket(), items = allItems(), cal = C.calendar(bk, items, DATA.fx), s = C.summary(cal), m;
   E.cal.innerHTML = '';
