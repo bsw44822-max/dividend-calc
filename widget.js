@@ -237,93 +237,191 @@ var OVER_TXT = '세전 1년 배당이 2천만원을 넘어요. 이자·배당 �
 var DEF_AMT = 10000000, DEF_SH = 100;
 var EX_KEYS = ['BCE', 'T', 'JNJ'];
 
+var R = '#bdgj4-root.bdgj4-root';
+// 선택자 앞말(R)을 한 군데서 붙임 · 쉼표로 나뉜 선택자마다 R을 붙인다 (선택자 안에 쉼표가 든 :not(a,b) 같은 건 쓰지 않음)
+function X(sel, body){ return sel.split(',').map(function(s){ return R + ' ' + s.trim(); }).join(',') + '{' + body + '}'; }
+var FONT_NUM = '"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif';
+var FONT_BODY = '-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",sans-serif';
+
+var TITLES = ['배당금 계산기', '월배당 계산기, 내 배당 달력 만들기', '담은 종목', '내 배당 달력', '섹터(업종)별 금액과 비중'];
+var FONT_TXT = (function(){ var s = '0123456789,.%-~ 억만원월' + TITLES.join(''), o = '', i; for (i = 0; i < s.length; i++) { if (o.indexOf(s.charAt(i)) < 0) { o += s.charAt(i); } } return o; })();
+
 var CSS = [
-  '.bdgj4-root{max-width:760px;margin:16px auto;padding:10px;background:#fff;color:#0D1220;font:16px/1.55 -apple-system,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;box-sizing:border-box;word-break:keep-all;overflow-wrap:anywhere;text-align:left;border:1px solid #D5DDE6;border-top:4px solid #F5C542;border-radius:6px;}',
-  '.bdgj4-root *{box-sizing:border-box;font-family:inherit;}',
-  '.bdgj4-root h2,.bdgj4-root h3,.bdgj4-root p{margin:0;padding:0;}',
-  '.bdgj4-h{font-size:22px;line-height:1.3;font-weight:800;color:#0D1220;margin:0 0 4px;}',
-  '.bdgj4-h2{font-size:19px;line-height:1.35;font-weight:800;color:#0D1220;margin:0 0 6px;}',
-  '.bdgj4-base{font-size:16px;color:#5B6B7D;margin:0 0 10px;}',
-  '.bdgj4-stale{font-size:16px;color:#b45309;font-weight:700;margin:0 0 8px;}',
-  '.bdgj4-sec{margin:18px 0 0;padding-top:16px;border-top:2px solid #D5DDE6;}',
-  '.bdgj4-lab{display:block;font-size:16px;font-weight:700;color:#0D1220;margin:10px 0 4px;}',
-  '.bdgj4-inp{display:block;width:100%;height:50px;font-size:18px;font-weight:700;color:#0D1220;background:#fff;border:2px solid #5B6B7D;border-radius:6px;padding:0 12px;}',
-  '.bdgj4-inp:focus{outline:3px solid #4C9AFF;border-color:#0D1220;}',
-  '.bdgj4-inp.bdgj4-sm{height:44px;font-size:16px;}',
-  '.bdgj4-hint{font-size:16px;color:#5B6B7D;margin:4px 0 0;}',
-  '.bdgj4-wrap{position:relative;}',
-  '.bdgj4-sug{position:absolute;left:0;right:0;top:100%;z-index:20;background:#fff;border:2px solid #0D1220;border-radius:6px;margin-top:2px;max-height:300px;overflow-y:auto;}',
-  '.bdgj4-sug button{display:block;width:100%;text-align:left;font-size:16px;color:#0D1220;background:#fff;border:0;border-bottom:1px solid #D5DDE6;padding:11px 12px;min-height:44px;cursor:pointer;}',
-  '.bdgj4-sug button:hover{background:#EAF3FF;}',
-  '.bdgj4-sug .bdgj4-sugnone{padding:11px 12px;color:#5B6B7D;}',
-  '.bdgj4-cards{display:grid;grid-template-columns:1fr;gap:0;margin:12px 0 0;background:#0D1220;border-radius:6px;padding:6px 16px;}',
-  '.bdgj4-card{background:transparent;border:0;border-top:1px solid #34425A;padding:10px 0;}.bdgj4-card:first-child{border-top:0;}',
-  '.bdgj4-card-l{font-size:16px;color:#8AA0B6;font-weight:700;}',
-  '.bdgj4-card-v{font-size:30px;line-height:1.25;font-weight:800;color:#F5C542;}',
-  '.bdgj4-card.bdgj4-sub .bdgj4-card-v{font-size:28px;color:#FFFFFF;}',
-  '.bdgj4-btns{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0;}',
-  '.bdgj4-btn{font-size:16px;font-weight:700;min-height:44px;padding:8px 14px;border-radius:6px;border:2px solid #0D1220;background:#fff;color:#0D1220;cursor:pointer;}',
-  '.bdgj4-btn.bdgj4-pri{background:#0D1220;color:#fff;}',
-  '.bdgj4-btn[disabled]{opacity:.55;cursor:default;}',
-  '.bdgj4-btn.bdgj4-xs{min-height:40px;padding:6px 10px;}',
-  '.bdgj4-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px;}',
-  '.bdgj4-chip{font-size:16px;min-height:40px;padding:6px 12px;border-radius:999px;border:2px solid #0D1220;background:#fff;color:#0D1220;cursor:pointer;}',
-  '.bdgj4-chip.bdgj4-on{background:#0D1220;border-color:#0D1220;color:#F5C542;font-weight:700;}',
-  '.bdgj4-box{border:1px solid #D5DDE6;border-radius:6px;padding:10px 12px;margin:10px 0 0;background:#F4F6F9;}',
-  '.bdgj4-box summary,.bdgj4-det summary{font-size:16px;font-weight:700;color:#0D1220;cursor:pointer;min-height:40px;display:block;padding:8px 0;}',
-  '.bdgj4-warn{font-size:16px;color:#92400e;background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:8px 12px;margin:10px 0 0;}',
-  '.bdgj4-note{font-size:16px;color:#5B6B7D;margin:8px 0 0;}',
-  '.bdgj4-it{border-bottom:1px solid #D5DDE6;}',
-  '.bdgj4-it-top{display:flex;align-items:center;gap:8px;padding:10px 0 2px;cursor:pointer;}',
-  '.bdgj4-rk{flex:none;width:28px;text-align:right;color:#5B6B7D;font-weight:700;}',
-  '.bdgj4-nm{flex:1 1 auto;min-width:0;font-weight:800;color:#0D1220;}',
-  '.bdgj4-rt{flex:none;font-weight:800;color:#0D1220;}',
-  '.bdgj4-arw{flex:none;width:18px;text-align:center;color:#5B6B7D;font-size:16px;}',
-  '.bdgj4-it-sub{padding:0 0 10px 36px;color:#5B6B7D;font-size:16px;}',
-  '.bdgj4-it-det{margin:0 0 10px 36px;padding:10px 12px;background:#F4F6F9;border-radius:6px;font-size:16px;}',
-  '.bdgj4-it-det div{margin:0 0 2px;}',
-  '.bdgj4-it-det .bdgj4-btns{margin-top:8px;}',
-  '.bdgj4-it-det a{color:#0D1220;font-weight:700;text-decoration:underline;}',
-  '.bdgj4-bk{border:1px solid #D5DDE6;border-radius:6px;padding:10px 12px;margin:8px 0 0;background:#fff;}',
-  '.bdgj4-bk-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}',
-  '.bdgj4-bk-nm{font-weight:800;color:#0D1220;min-width:0;}',
-  '.bdgj4-bk-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0 0;}',
-  '.bdgj4-bk-row .bdgj4-inp{width:150px;flex:none;}',
-  '.bdgj4-bk-res{font-weight:700;color:#0D1220;margin:6px 0 0;}',
-  '.bdgj4-cal{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0 0;}',
-  '.bdgj4-cell{font-size:16px;text-align:left;border:1px solid #D5DDE6;background:#fff;color:#0D1220;border-radius:6px;padding:6px 3px 6px 6px;min-height:92px;cursor:pointer;min-width:0;}',
-  '.bdgj4-cell.bdgj4-has{border:2px solid #4C9AFF;background:#EAF3FF;}',
-  '.bdgj4-cell.bdgj4-sel{background:#0D1220;color:#fff;border:2px solid #F5C542;}',
-  '.bdgj4-cell b{display:block;font-size:17px;}',
-  '.bdgj4-cell .bdgj4-amt{display:block;font-weight:800;letter-spacing:-.3px;}',
-  '.bdgj4-cell .bdgj4-void{display:block;color:#5B6B7D;}',
-  '.bdgj4-cell.bdgj4-sel .bdgj4-void{color:#8AA0B6;}',
-  '.bdgj4-mdet{margin:8px 0 0;padding:10px 12px;border:2px solid #0D1220;border-radius:6px;background:#fff;}',
-  '.bdgj4-dl{display:grid;grid-template-columns:1fr auto;gap:2px 12px;margin:10px 0 0;}',
-  '.bdgj4-dl span:nth-child(odd){color:#5B6B7D;}',
-  '.bdgj4-dl span:nth-child(even){font-weight:800;text-align:right;color:#0D1220;}',
-  '.bdgj4-bar{margin:8px 0 0;}',
-  '.bdgj4-bar-t{display:flex;justify-content:space-between;gap:8px;}',
-  '.bdgj4-bar-t span:last-child{font-weight:700;white-space:nowrap;}',
-  '.bdgj4-bar-b{height:14px;background:#D5DDE6;border-radius:4px;overflow:hidden;margin-top:2px;}',
-  '.bdgj4-bar-b i{display:block;height:100%;background:#4C9AFF;border-radius:4px;}',
-  '.bdgj4-sm-row{display:flex;gap:8px;flex-wrap:wrap;}',
-  '.bdgj4-sm-row>*{flex:1 1 140px;min-width:0;}',
-  '.bdgj4-tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid #D5DDE6;border-radius:6px;margin:6px 0 0;}',
-  '.bdgj4-tblwrap table{border-collapse:collapse;min-width:560px;width:100%;font-size:16px;}',
-  '.bdgj4-tblwrap small,.bdgj4-tblwrap td *,.bdgj4-tblwrap th *{font-size:16px;}',
-  '.bdgj4-tblwrap th,.bdgj4-tblwrap td{padding:6px 8px;border-bottom:1px solid #D5DDE6;text-align:left;font-size:16px;}',
-  '.bdgj4-band{position:sticky;bottom:0;z-index:15;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px -4px 0;padding:8px 10px;background:#0D1220;color:#fff;border-radius:6px;font-weight:700;box-shadow:0 -2px 10px rgba(0,0,0,.2);}',
-  '.bdgj4-band .bdgj4-btn{background:#F5C542;color:#0D1220;border-color:#F5C542;white-space:nowrap;}',
-  '.bdgj4-foot{margin:16px 0 0;padding-top:12px;border-top:2px solid #D5DDE6;font-size:16px;color:#5B6B7D;}',
-  '.bdgj4-foot p{margin:0 0 4px;}',
-  '@media (min-width:640px){.bdgj4-root{padding:20px;}.bdgj4-cards{grid-template-columns:repeat(3,1fr);column-gap:16px;padding:6px 20px;}.bdgj4-card,.bdgj4-card:first-child{border-top:0;}.bdgj4-card+.bdgj4-card{border-left:1px solid #34425A;padding-left:16px;}.bdgj4-cal{grid-template-columns:repeat(4,1fr);}.bdgj4-card-v{font-size:30px;}.bdgj4-card.bdgj4-sub .bdgj4-card-v{font-size:28px;}}'
+  // 뿌리·리셋
+  R + '{--bd-ink:#0D1220;--bd-panel:#EEF2F7;--bd-paper:#fff;--bd-gold:#F5C542;--bd-blue:#1F5FBF;--bd-blue-t:#DCE8FB;--bd-mute:#4F5E70;--bd-mute-n:#8AA0B6;--bd-line:#D3DBE6;--bd-line-n:#34425A;--bd-edge:#7C8A9C;--bd-track:#DDE4EE;--bd-num:' + FONT_NUM + ';--bd-body:' + FONT_BODY + ';max-width:760px;margin:24px auto;padding:20px 14px 14px;background:var(--bd-panel);color:var(--bd-ink);font:400 16px/1.6 var(--bd-body);border:0;border-radius:16px;box-sizing:border-box;word-break:keep-all;overflow-wrap:break-word;text-align:left;-webkit-text-size-adjust:100%;}',
+  X('*', 'box-sizing:border-box;font-family:inherit;letter-spacing:normal;text-shadow:none;-webkit-tap-highlight-color:transparent;'),
+  X('h2,h3,p,label,summary,details,button,input,a', 'margin:0;padding:0;border:0;background:none;box-shadow:none;color:inherit;font:inherit;text-transform:none;text-indent:0;float:none;width:auto;max-width:none;min-width:0;-webkit-appearance:none;appearance:none;'),
+  X('h2::before,h2::after,h3::before,h3::after', 'content:none;display:none;'),
+  X('::selection', 'background:#0D1220;color:#fff;'),
+  X('input', 'caret-color:#1F5FBF;'),
+  X(':focus-visible', 'outline:3px solid #1F5FBF;outline-offset:2px;'),
+  X('.bdgj4-band :focus-visible', 'outline-color:#F5C542;'),
+  // 제목·글
+  X('.bdgj4-h', 'font:900 30px/1.2 var(--bd-num);letter-spacing:-.02em;margin:0 0 12px;'),
+  X('.bdgj4-h2', 'font:900 24px/1.25 var(--bd-num);letter-spacing:-.015em;margin:0 0 8px;'),
+  X('.bdgj4-sec', 'margin:40px 0 0;padding:0;border:0;'),
+  X('.bdgj4-lab', 'display:block;font-size:16px;font-weight:700;margin:14px 0 6px;'),
+  X('.bdgj4-hint,.bdgj4-note', 'font-size:16px;line-height:1.5;color:var(--bd-mute);margin:6px 0 0;'),
+  X('.bdgj4-stale,.bdgj4-warn', 'font-size:16px;font-weight:500;color:#7A3E00;background:#FFF1CC;border:0;border-radius:10px;padding:10px 14px;margin:10px 0 0;'),
+  // 입력·찾기 목록
+  X('.bdgj4-inp', 'display:block;width:100%;height:52px;padding:0 14px;font-size:18px;font-weight:700;color:var(--bd-ink);background:#fff;border:1px solid var(--bd-edge);border-radius:10px;'),
+  X('.bdgj4-inp:focus', 'outline:3px solid #1F5FBF;outline-offset:1px;border-color:#0D1220;'),
+  X('.bdgj4-inp::placeholder', 'color:var(--bd-mute);font-weight:400;'),
+  X('.bdgj4-inp.bdgj4-sm', 'height:48px;font-size:16px;font-weight:500;'),
+  X('.bdgj4-wrap', 'position:relative;'),
+  X('.bdgj4-sug', 'position:absolute;left:0;right:0;top:100%;border:1px solid var(--bd-edge);border-radius:10px;margin-top:4px;background:#fff;box-shadow:0 12px 28px -8px rgba(13,18,32,.35);max-height:300px;overflow-y:auto;z-index:20;'),
+  X('.bdgj4-sug button', 'display:block;width:100%;text-align:left;min-height:48px;padding:12px 14px;font-size:16px;border-bottom:1px solid var(--bd-line);cursor:pointer;'),
+  X('.bdgj4-sug button:hover', 'background:var(--bd-panel);'),
+  X('.bdgj4-sug .bdgj4-sugnone', 'padding:11px 12px;color:#5B6B7D;'),
+  // 첫 칸 틀 (폰 = 그냥 세로 · 640 이상 = 두 줄기는 맨 아래 media)
+  X('.bdgj4-top', 'display:block;'),
+  // 배출구·성적표
+  X('.bdgj4-slot', 'position:relative;container-type:inline-size;margin:16px 0 0;padding-top:8px;'),
+  X('.bdgj4-slot::before', 'content:"";position:absolute;left:0;right:0;top:0;height:16px;border-radius:8px;background:#C6D0DD;box-shadow:inset 0 1px 0 #fff,inset 0 -1px 0 #A9B6C6;z-index:2;'),
+  X('.bdgj4-slot::after', 'content:"";position:absolute;left:8px;right:8px;top:5px;height:6px;border-radius:3px;background:#0D1220;z-index:3;'),
+  X('.bdgj4-slotin', 'position:relative;z-index:1;margin:0 12px;overflow:hidden;border-radius:0 0 14px 14px;'),
+  X('.bdgj4-cards', 'display:block;margin:0;padding:24px 18px 16px;background:#0D1220;color:#fff;border-radius:0 0 14px 14px;'),
+  X('.bdgj4-tk', 'display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;'),
+  X('.bdgj4-tag', 'flex:none;font-size:16px;font-weight:900;line-height:1;padding:6px 8px;border-radius:6px;background:#F5C542;color:#0D1220;'),
+  X('.bdgj4-tk-nm', 'min-width:0;font-size:18px;font-weight:800;color:#fff;'),
+  X('.bdgj4-tk-sub', 'font-size:16px;color:var(--bd-mute-n);margin:4px 0 0;'),
+  X('.bdgj4-card', 'background:none;border:0;padding:0;margin:14px 0 0;'),
+  X('.bdgj4-card-l', 'font-size:16px;font-weight:700;color:var(--bd-mute-n);flex:none;'),
+  X('.bdgj4-money', 'white-space:nowrap;'),
+  X('.bdgj4-card-v', 'font:900 40px/1.15 var(--bd-num);font-size:clamp(40px,13cqi,56px);letter-spacing:-.01em;color:#F5C542;font-variant-numeric:tabular-nums;min-height:1.15em;white-space:nowrap;'),
+  X('.bdgj4-card-v.bdgj4-long', 'font-size:32px;font-size:clamp(30px,10cqi,44px);'),
+  X('.bdgj4-card.bdgj4-sub', 'display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:12px;margin:0;padding:10px 0;border-top:1px solid var(--bd-line-n);'),
+  X('.bdgj4-card:not(.bdgj4-sub)+.bdgj4-sub', 'margin-top:14px;'),
+  X('.bdgj4-card.bdgj4-sub .bdgj4-card-v', 'font:900 20px/1.3 var(--bd-num);color:#fff;text-align:right;min-height:0;flex:1 1 auto;min-width:0;max-width:100%;'),
+  X('.bdgj4-tk-ft', 'font-size:16px;line-height:1.5;color:var(--bd-mute-n);margin:0;padding:10px 0 0;border-top:1px solid var(--bd-line-n);'),
+  '@keyframes bdgj4-out{from{transform:translateY(-28px);opacity:.35}to{transform:none;opacity:1}}',
+  X('.bdgj4-cards.bdgj4-go', 'animation:bdgj4-out .34s cubic-bezier(.16,1,.3,1) both;'),
+  '@media (prefers-reduced-motion:reduce){' + X('.bdgj4-cards.bdgj4-go', 'animation:none;') + '}',
+  // 단추
+  X('.bdgj4-btns', 'display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0;'),
+  X('.bdgj4-btn', 'min-height:48px;padding:8px 16px;border-radius:10px;font-size:16px;font-weight:700;background:#fff;color:var(--bd-ink);box-shadow:inset 0 0 0 1px var(--bd-edge);cursor:pointer;transition:background-color .12s,color .12s;'),
+  X('.bdgj4-btn:active', 'transform:translateY(1px);'),
+  X('.bdgj4-btn.bdgj4-pri', 'background:#0D1220;color:#fff;box-shadow:none;'),
+  X('.bdgj4-btn.bdgj4-add', 'flex:1 1 160px;'),
+  X('.bdgj4-btn.bdgj4-xs', 'min-height:44px;padding:6px 12px;flex:none;white-space:nowrap;'),
+  X('.bdgj4-btn.bdgj4-inb', 'background:var(--bd-blue-t);color:var(--bd-blue);box-shadow:none;'),
+  X('.bdgj4-btn.bdgj4-ghost', 'background:none;box-shadow:none;padding:6px 0;min-width:44px;justify-content:flex-start;text-align:left;font-weight:500;text-decoration:underline;text-underline-offset:4px;'),
+  X('.bdgj4-btn[aria-expanded]', 'display:inline-flex;align-items:center;justify-content:center;'),
+  X('.bdgj4-btn[aria-expanded]::after', 'content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin:0 0 4px 10px;flex:none;'),
+  X('.bdgj4-btn[aria-expanded="true"]::after', 'transform:rotate(-135deg);margin-bottom:-4px;'),
+  X('.bdgj4-act .bdgj4-btns', 'gap:10px 8px;'),
+  X('.bdgj4-btn[disabled]', 'opacity:.55;cursor:not-allowed;'),
+  // 칩 (알약 = 여러 개 켜기)
+  X('.bdgj4-chips', 'display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px;'),
+  X('.bdgj4-chip', 'min-height:44px;padding:0 14px;border-radius:999px;font-size:16px;font-weight:500;background:#fff;color:var(--bd-ink);box-shadow:inset 0 0 0 1px #C3CDDA;cursor:pointer;'),
+  X('.bdgj4-chip.bdgj4-on', 'background:#0D1220;color:#fff;box-shadow:none;'),
+  // 붙은 조각 (둘·셋 중 하나 고르기)
+  X('.bdgj4-seg', 'display:inline-flex;flex-wrap:nowrap;gap:0;padding:3px;border-radius:12px;background:var(--bd-track);max-width:100%;'),
+  X('.bdgj4-seg .bdgj4-chip', 'min-height:42px;border-radius:9px;background:transparent;box-shadow:none;'),
+  X('.bdgj4-seg .bdgj4-chip.bdgj4-on', 'background:#0D1220;color:#fff;'),
+  // 접는 칸·흰 칸
+  X('.bdgj4-box', 'background:#fff;border:0;border-radius:12px;padding:14px 16px;margin:12px 0 0;'),
+  X('.bdgj4-box summary,.bdgj4-det summary', 'display:flex;align-items:center;justify-content:space-between;min-height:48px;font-size:16px;font-weight:700;cursor:pointer;list-style:none;'),
+  X('.bdgj4-box summary::-webkit-details-marker,.bdgj4-det summary::-webkit-details-marker', 'display:none;'),
+  X('.bdgj4-box summary::after,.bdgj4-det summary::after', 'content:"";width:9px;height:9px;border-right:2px solid var(--bd-ink);border-bottom:2px solid var(--bd-ink);transform:rotate(45deg);margin:0 6px 4px 12px;flex:none;'),
+  X('.bdgj4-box[open] > summary::after,.bdgj4-det[open] > summary::after', 'transform:rotate(-135deg);margin-bottom:-4px;'),
+  // 종목 목록
+  X('.bdgj4-list', 'background:#fff;border-radius:12px;padding:0 12px;margin:10px 0 0;'),
+  X('.bdgj4-it', 'position:relative;border-bottom:1px solid var(--bd-line);'),
+  X('.bdgj4-it:last-child', 'border-bottom:0;'),
+  X('.bdgj4-it-top', 'display:flex;align-items:flex-start;gap:8px;padding:8px 0 2px;cursor:pointer;'),
+  X('.bdgj4-rk', 'flex:none;width:24px;text-align:right;color:var(--bd-mute);font-weight:500;font-variant-numeric:tabular-nums;line-height:28.8px;padding:7px 0;'),
+  X('.bdgj4-nm', 'flex:1 1 auto;min-width:0;font-size:18px;font-weight:700;line-height:28.8px;padding:7px 0;'),
+  X('.bdgj4-rt', 'flex:none;min-width:62px;text-align:right;font:900 18px/28.8px var(--bd-num);font-variant-numeric:tabular-nums;padding:7px 0;'),
+  X('.bdgj4-arw', 'position:absolute;right:4px;top:50%;margin-top:-8px;width:9px;height:9px;border-right:2px solid var(--bd-mute);border-bottom:2px solid var(--bd-mute);transform:rotate(45deg);'),
+  X('.bdgj4-open .bdgj4-arw', 'transform:rotate(-135deg);'),
+  X('.bdgj4-it-sub', 'position:relative;cursor:pointer;padding:0 28px 12px 32px;font-size:16px;color:var(--bd-mute);'),
+  X('.bdgj4-it-det', 'margin:0 0 12px;padding:12px 14px;background:var(--bd-panel);border-radius:10px;font-size:16px;'),
+  X('.bdgj4-it-det .bdgj4-btns', 'margin-top:8px;'),
+  X('.bdgj4-kv', 'display:grid;grid-template-columns:minmax(80px,38%) minmax(0,1fr);column-gap:12px;padding:3px 0;'),
+  X('.bdgj4-kv > span:first-child', 'color:var(--bd-mute);'),
+  X('.bdgj4-kv > span:last-child', 'font-weight:700;'),
+  X('.bdgj4-it-det a:not(.bdgj4-btn)', 'color:var(--bd-blue);font-weight:700;text-decoration:underline;text-underline-offset:4px;'),
+  // 담은 종목
+  X('.bdgj4-bklist', 'background:#fff;border-radius:12px;padding:0 14px;margin:10px 0 0;'),
+  X('.bdgj4-bklist:empty', 'padding:0;'),
+  X('.bdgj4-bk', 'border:0;border-radius:0;background:none;margin:0;padding:14px 0;border-bottom:1px solid var(--bd-line);'),
+  X('.bdgj4-bk:last-child', 'border-bottom:0;'),
+  X('.bdgj4-bk-top', 'display:flex;align-items:center;justify-content:space-between;gap:8px;'),
+  X('.bdgj4-bk-nm', 'font-size:18px;font-weight:700;min-width:0;'),
+  X('.bdgj4-bk-row', 'display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 0;'),
+  X('.bdgj4-bk-row .bdgj4-inp', 'width:150px;flex:1 1 96px;max-width:200px;'),
+  X('.bdgj4-bk-res', 'font-weight:800;margin:8px 0 0;font-variant-numeric:tabular-nums;'),
+  // 달력 (칸이 곧 막대)
+  X('.bdgj4-cal', 'display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:10px 0 0;'),
+  X('.bdgj4-cell', '--v:0%;display:block;min-width:0;min-height:108px;padding:8px 2px 8px 6px;border:0;border-radius:10px;text-align:left;font-size:16px;line-height:1.35;color:var(--bd-ink);background:#fff;background:linear-gradient(to top,var(--bd-blue-t) var(--v),#fff var(--v));cursor:pointer;'),
+  X('.bdgj4-cell b', 'display:block;font:900 16px/1.4 var(--bd-num);'),
+  X('.bdgj4-cell span,.bdgj4-void', 'display:block;color:var(--bd-mute);'),
+  X('.bdgj4-cell .bdgj4-amt', 'white-space:nowrap;display:block;font:900 16px/1.3 var(--bd-num);letter-spacing:-.7px;font-variant-numeric:tabular-nums;color:var(--bd-ink);'),
+  X('.bdgj4-cell.bdgj4-sel', 'background:#0D1220;color:#fff;'),
+  X('.bdgj4-cell.bdgj4-sel span,.bdgj4-cell.bdgj4-sel .bdgj4-void', 'color:var(--bd-mute-n);'),
+  X('.bdgj4-cell.bdgj4-sel span.bdgj4-amt', 'color:#F5C542;'),
+  X('.bdgj4-mdet', 'margin:8px 0 0;padding:12px 14px;border:0;border-radius:10px;background:#fff;'),
+  X('.bdgj4-dl', 'display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0;margin:12px 0 0;'),
+  X('.bdgj4-dl > span', 'padding:8px 0;border-bottom:1px solid var(--bd-line);'),
+  X('.bdgj4-dl > span:nth-child(odd)', 'color:var(--bd-mute);'),
+  X('.bdgj4-dl > span:nth-child(even)', 'font-weight:800;text-align:right;font-variant-numeric:tabular-nums;padding-left:12px;'),
+  // 섹터 막대
+  X('.bdgj4-bar', 'margin:12px 0 0;'),
+  X('.bdgj4-bar-t', 'display:flex;justify-content:space-between;gap:8px;'),
+  X('.bdgj4-bar-t span:last-child', 'font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;'),
+  X('.bdgj4-bar-b', 'height:12px;margin-top:4px;background:var(--bd-track);border-radius:0 2px 2px 0;overflow:hidden;'),
+  X('.bdgj4-bar-b i', 'display:block;height:100%;background:var(--bd-blue);border-radius:0 2px 2px 0;'),
+  // 표·안내·아래 띠
+  X('.bdgj4-tblwrap', 'overflow-x:auto;-webkit-overflow-scrolling:touch;background:#fff;border:0;border-radius:12px;margin:8px 0 0;'),
+  X('.bdgj4-tblwrap table', 'border-collapse:collapse;min-width:560px;width:100%;font-size:16px;'),
+  X('.bdgj4-tblwrap small,.bdgj4-tblwrap td *,.bdgj4-tblwrap th *', 'font-size:16px;'),
+  X('.bdgj4-tblwrap th', 'font-weight:700;color:var(--bd-mute);white-space:nowrap;'),
+  X('.bdgj4-tblwrap th,.bdgj4-tblwrap td', 'white-space:nowrap;padding:10px 12px;border-bottom:1px solid var(--bd-line);font-size:16px;text-align:left;'),
+  X('.bdgj4-tblwrap th:first-child,.bdgj4-tblwrap td:first-child', 'white-space:normal;min-width:180px;'),
+  X('.bdgj4-foot', 'margin:40px 0 0;padding-top:14px;border-top:1px solid var(--bd-line);font-size:16px;color:var(--bd-mute);'),
+  X('.bdgj4-foot p', 'margin:0 0 4px;'),
+  X('.bdgj4-band', 'position:sticky;bottom:8px;z-index:15;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:20px 0 0;padding:8px 8px 8px 16px;border-radius:14px;background:#0D1220;color:#fff;font-weight:500;box-shadow:0 8px 20px -8px rgba(13,18,32,.5);'),
+  X('.bdgj4-band-a', 'white-space:nowrap;display:block;font:900 18px/1.3 var(--bd-num);color:#F5C542;font-variant-numeric:tabular-nums;'),
+  X('.bdgj4-band .bdgj4-btn', 'background:#fff;color:#0D1220;box-shadow:none;white-space:nowrap;'),
+  // 640 이상: 첫 칸 두 줄기 (왼쪽 입력 5 : 오른쪽 성적표 6) · 달력 6칸
+  '@media (min-width:640px){' + R + '{padding:28px 24px 20px;}' +
+    X('.bdgj4-top', 'display:grid;grid-template-columns:minmax(292px,5fr) minmax(0,6fr);column-gap:28px;grid-template-areas:"in slot" "act slot";align-items:start;') +
+    X('.bdgj4-in', 'grid-area:in;min-width:0;') + X('.bdgj4-slot', 'grid-area:slot;margin-top:30px;') + X('.bdgj4-act', 'grid-area:act;min-width:0;') +
+    X('.bdgj4-cell', 'min-height:124px;') +
+    X('.bdgj4-sm-row', 'display:flex;gap:12px;') + X('.bdgj4-sm-row > *', 'flex:1 1 0;min-width:0;') + '}'
 ].join('');
 
 function h(tag, cls, text){ var e = document.createElement(tag); if (cls) { e.className = cls; } if (text !== undefined && text !== null) { e.textContent = text; } return e; }
 function add(p, c){ p.appendChild(c); return c; }
 function btn(cls, text, fn){ var b = h('button', 'bdgj4-btn ' + cls, text); b.type = 'button'; if (fn) { b.addEventListener('click', fn); } return b; }
 function chip(text, on, fn){ var b = h('button', 'bdgj4-chip' + (on ? ' bdgj4-on' : ''), text); b.type = 'button'; b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.addEventListener('click', fn); return b; }
+var CELLPAD = 8;
+var MONEY_RE = /-?\d[\d,]*(?:억(?: \d[\d,]*만)?(?: \d[\d,]*)?|만(?: \d[\d,]*)?)?원(?:\(\d+월 \d+일\))?|\(?\d+월 \d+일\)?/g;
+function setM(el, text){
+  el.textContent = ''; text = String(text); var last = 0, m;
+  MONEY_RE.lastIndex = 0;
+  while ((m = MONEY_RE.exec(text)) !== null) {
+    if (m.index > last) { el.appendChild(document.createTextNode(text.slice(last, m.index))); }
+    add(el, h('span', 'bdgj4-money', m[0])); last = m.index + m[0].length;
+  }
+  if (last < text.length) { el.appendChild(document.createTextNode(text.slice(last))); }
+}
+function fit(el, min){
+  el.style.fontSize = '';
+  var fs = parseFloat(window.getComputedStyle(el).fontSize), g = 0;
+  while (el.scrollWidth > el.clientWidth + 0.5 && fs > min && g < 40) { fs -= 1; el.style.fontSize = fs + 'px'; g++; }
+}
+function checkTbl(){ if (!E.tblHold || !E.tblHint) { return; } E.tblHint.style.display = (E.tblDet.open && E.tblHold.scrollWidth > E.tblHold.clientWidth + 1) ? '' : 'none'; }
+function fitCal(){
+  if (!E.cal || !E.cal.getClientRects().length) { return; }
+  var els = E.cal.querySelectorAll('.bdgj4-cell b, .bdgj4-cell .bdgj4-amt, .bdgj4-cell span:not(.bdgj4-void)'), mx = 0, i, w, rg = document.createRange();
+  for (i = 0; i < els.length; i++) { rg.selectNodeContents(els[i]); w = rg.getBoundingClientRect().width; if (w > mx) { mx = w; } }
+  var cw = E.cal.clientWidth, cands = [6, 4, 3, 2], n = 2;
+  for (i = 0; i < cands.length; i++) { if ((cw - 4 * (cands[i] - 1)) / cands[i] - CELLPAD >= mx) { n = cands[i]; break; } }
+  E.cal.style.gridTemplateColumns = 'repeat(' + n + ',minmax(0,1fr))';
+}
+function fitAll(){ if (E.cAvg) { fit(E.cAvg, 20); fit(E.cYear, 16); } fitCal(); checkTbl(); }
 function comma(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 function fmtWon(n){
   n = Math.round(n); if (!isFinite(n)) { return '-'; }
@@ -420,6 +518,7 @@ function start(){
   root.setAttribute('data-bdgj4-init', '1');
   if (!/(^| )bdgj4-root( |$)/.test(root.className)) { root.className = (root.className + ' bdgj4-root').replace(/^ /, ''); }
   if (!document.getElementById('bdgj4-style')) { var st = document.createElement('style'); st.id = 'bdgj4-style'; st.appendChild(document.createTextNode(CSS)); (document.head || document.documentElement).appendChild(st); }
+  if (!document.getElementById('bdgj4-font')) { var fl = document.createElement('link'); fl.id = 'bdgj4-font'; fl.rel = 'stylesheet'; fl.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@900&display=swap&text=' + encodeURIComponent(FONT_TXT); (document.head || document.documentElement).appendChild(fl); }
   root.removeAttribute('style');
   loadState(); rebuildCustoms(); cleanBasket();
   if (!itemOf(S.sel)) { S.sel = itemOf('SCHD') ? 'SCHD' : (DATA.items[0] ? DATA.items[0].tk : ''); }
@@ -429,42 +528,51 @@ function start(){
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', tryMove); }
   window.addEventListener('load', tryMove);
   fetchNew();
+  if (document.fonts && document.fonts.ready) { document.fonts.ready.then(fitAll); }
+  window.addEventListener('resize', fitAll);
 }
 
 function build(){
   root.innerHTML = '';
   // 0·1 빠른 계산
-  add(root, h('h2', 'bdgj4-h', '배당금 계산기'));
-  E.base = add(root, h('p', 'bdgj4-base'));
+  add(root, h('h2', 'bdgj4-h', TITLES[0]));
   E.stale = add(root, h('p', 'bdgj4-stale')); E.stale.style.display = 'none';
 
-  var w1 = add(root, h('div', 'bdgj4-wrap'));
+  var top = add(root, h('div', 'bdgj4-top'));
+  var inn = add(top, h('div', 'bdgj4-in'));
+  var w1 = add(inn, h('div', 'bdgj4-wrap'));
   var l1 = add(w1, h('label', 'bdgj4-lab', '종목 찾기')); l1.setAttribute('for', 'bdgj4-q1');
   E.q1 = add(w1, h('input', 'bdgj4-inp')); E.q1.id = 'bdgj4-q1'; E.q1.type = 'text'; E.q1.setAttribute('autocomplete', 'off'); E.q1.setAttribute('placeholder', '이름이나 코드 (예: SCHD, 기업은행)');
   E.sug = add(w1, h('div', 'bdgj4-sug')); E.sug.style.display = 'none';
-  E.selNote = add(root, h('div', 'bdgj4-hint'));
 
-  E.amtLab = add(root, h('label', 'bdgj4-lab', '투자금(원)')); E.amtLab.setAttribute('for', 'bdgj4-a1');
-  E.a1 = add(root, h('input', 'bdgj4-inp')); E.a1.id = 'bdgj4-a1'; E.a1.type = 'text'; E.a1.setAttribute('inputmode', 'numeric'); E.a1.setAttribute('autocomplete', 'off');
-  E.amtHint = add(root, h('div', 'bdgj4-hint'));
+  E.amtLab = add(inn, h('label', 'bdgj4-lab', '투자금(원)')); E.amtLab.setAttribute('for', 'bdgj4-a1');
+  E.a1 = add(inn, h('input', 'bdgj4-inp')); E.a1.id = 'bdgj4-a1'; E.a1.type = 'text'; E.a1.setAttribute('inputmode', 'numeric'); E.a1.setAttribute('autocomplete', 'off');
+  E.amtHint = add(inn, h('div', 'bdgj4-hint'));
 
-  E.cards = add(root, h('div', 'bdgj4-cards'));
+  var slot = add(top, h('div', 'bdgj4-slot'));
+  E.cards = add(add(slot, h('div', 'bdgj4-slotin')), h('div', 'bdgj4-cards'));
+  var tk = add(E.cards, h('div', 'bdgj4-tk'));
+  E.tkCy = add(tk, h('span', 'bdgj4-tag')); E.tkNm = add(tk, h('span', 'bdgj4-tk-nm'));
+  E.selNote = add(E.cards, h('div', 'bdgj4-tk-sub'));
   function card(cls, label){ var c = add(E.cards, h('div', 'bdgj4-card ' + cls)); add(c, h('div', 'bdgj4-card-l', label)); return add(c, h('div', 'bdgj4-card-v', '-')); }
   E.cAvg = card('', '한 달 평균(세후)');
   E.cYear = card('bdgj4-sub', '1년(세후)');
-  E.cRate = card('bdgj4-sub', '배당률');
-  add(root, h('div', 'bdgj4-hint', '세후는 세금(국내 15.4%, 미국 15%) 뗀 뒤 금액이고, 배당률은 1년 배당금 ÷ 주가예요.'));
-  E.qMsg = add(root, h('div', 'bdgj4-warn')); E.qMsg.style.display = 'none';
+  E.cRate = card('bdgj4-sub', '배당률(세전)');
+  E.base = add(E.cards, h('p', 'bdgj4-base bdgj4-tk-ft'));
 
-  var br = add(root, h('div', 'bdgj4-btns'));
+  var act = add(top, h('div', 'bdgj4-act'));
+  add(act, h('div', 'bdgj4-hint', '세후는 세금(국내 15.4%, 미국 15%) 뗀 뒤 금액이고, 배당률은 1년 배당금 ÷ 주가예요.'));
+  E.qMsg = add(act, h('div', 'bdgj4-warn')); E.qMsg.style.display = 'none';
+
+  var br = add(act, h('div', 'bdgj4-btns'));
+  E.bAdd = btn('bdgj4-pri bdgj4-add', '담기', addQuick); add(br, E.bAdd);
   E.bDet = btn('', '자세히(주 수로 넣기, 목표 금액)', function(){ var open = E.det.style.display === 'none'; E.det.style.display = open ? '' : 'none'; E.bDet.setAttribute('aria-expanded', open ? 'true' : 'false'); }); E.bDet.setAttribute('aria-expanded', 'false'); add(br, E.bDet);
-  E.bAdd = btn('bdgj4-pri', '담기', addQuick); add(br, E.bAdd);
-  add(root, h('div', 'bdgj4-hint', '담으면 1~12월 내 배당 달력에 들어가요.'));
-  E.addMsg = add(root, h('div', 'bdgj4-hint'));
+  add(act, h('div', 'bdgj4-hint', '담으면 1~12월 내 배당 달력에 들어가요.'));
+  E.addMsg = add(act, h('div', 'bdgj4-hint'));
 
   E.det = add(root, h('div', 'bdgj4-box')); E.det.style.display = 'none';
   add(E.det, h('div', 'bdgj4-lab', '넣는 방법')).style.marginTop = '0';
-  E.modeChips = add(E.det, h('div', 'bdgj4-chips'));
+  E.modeChips = add(E.det, h('div', 'bdgj4-chips bdgj4-seg'));
   E.dl = add(E.det, h('div', 'bdgj4-dl'));
   var lg = add(E.det, h('label', 'bdgj4-lab', '목표: 한 달 평균(세후) 얼마를 받고 싶나요?')); lg.setAttribute('for', 'bdgj4-g1');
   E.g1 = add(E.det, h('input', 'bdgj4-inp')); E.g1.id = 'bdgj4-g1'; E.g1.type = 'text'; E.g1.setAttribute('inputmode', 'numeric'); E.g1.setAttribute('placeholder', '예: 300,000');
@@ -472,7 +580,7 @@ function build(){
 
   // 2·3·4 종목 고르기
   var s2 = add(root, h('div', 'bdgj4-sec')); E.sec2 = s2;
-  add(s2, h('h3', 'bdgj4-h2', '월배당 계산기, 내 배당 달력 만들기'));
+  add(s2, h('h3', 'bdgj4-h2', TITLES[1]));
   add(s2, h('div', 'bdgj4-hint', '배당률이 높다고 좋은 종목은 아니에요.'));
   add(s2, h('div', 'bdgj4-lab', '주기'));
   E.cyChips = add(s2, h('div', 'bdgj4-chips'));
@@ -482,28 +590,31 @@ function build(){
   var dsc = add(s2, h('details', 'bdgj4-det')); add(dsc, h('summary', '', '섹터(업종)로 거르기'));
   E.scChips = add(dsc, h('div', 'bdgj4-chips'));
   add(dsc, h('div', 'bdgj4-hint', '커버드콜 ETF는 주식을 들고 옵션을 팔아 배당을 늘린 상품이고, 리츠는 건물 임대료나 부동산 대출 이자로 번 돈을 나눠 주는 상품이에요.'));
-  var lq = add(s2, h('label', 'bdgj4-lab', '이름 찾기')); lq.setAttribute('for', 'bdgj4-q2');
-  E.q2 = add(s2, h('input', 'bdgj4-inp bdgj4-sm')); E.q2.id = 'bdgj4-q2'; E.q2.type = 'text'; E.q2.setAttribute('autocomplete', 'off'); E.q2.setAttribute('placeholder', '이름이나 코드');
-  var lr = add(s2, h('label', 'bdgj4-lab', '배당률 몇 % 이상만 볼까요')); lr.setAttribute('for', 'bdgj4-minr');
-  E.minR = add(s2, h('input', 'bdgj4-inp bdgj4-sm')); E.minR.id = 'bdgj4-minr'; E.minR.type = 'text'; E.minR.setAttribute('inputmode', 'decimal'); E.minR.setAttribute('autocomplete', 'off'); E.minR.setAttribute('placeholder', '예: 5');
+  var smr = add(s2, h('div', 'bdgj4-sm-row')), sm1 = add(smr, h('div', '')), sm2 = add(smr, h('div', ''));
+  var lq = add(sm1, h('label', 'bdgj4-lab', '이름 찾기')); lq.setAttribute('for', 'bdgj4-q2');
+  E.q2 = add(sm1, h('input', 'bdgj4-inp bdgj4-sm')); E.q2.id = 'bdgj4-q2'; E.q2.type = 'text'; E.q2.setAttribute('autocomplete', 'off'); E.q2.setAttribute('placeholder', '이름이나 코드');
+  var lr = add(sm2, h('label', 'bdgj4-lab', '배당률 몇 % 이상만 볼까요')); lr.setAttribute('for', 'bdgj4-minr');
+  E.minR = add(sm2, h('input', 'bdgj4-inp bdgj4-sm')); E.minR.id = 'bdgj4-minr'; E.minR.type = 'text'; E.minR.setAttribute('inputmode', 'decimal'); E.minR.setAttribute('autocomplete', 'off'); E.minR.setAttribute('placeholder', '예: 5');
   add(s2, h('div', 'bdgj4-lab', '정렬'));
-  E.sortChips = add(s2, h('div', 'bdgj4-chips'));
+  E.sortChips = add(s2, h('div', 'bdgj4-chips bdgj4-seg'));
   E.count = add(s2, h('div', 'bdgj4-hint'));
   E.rdNote = add(s2, h('div', 'bdgj4-hint'));
   E.list = add(s2, h('div', 'bdgj4-list'));
   E.more = add(s2, h('div', ''));
   var dt = add(s2, h('details', 'bdgj4-det')); E.tblDet = dt; add(dt, h('summary', '', '전체 종목 표 보기'));
+  E.tblHint = add(dt, h('p', 'bdgj4-hint', '표는 옆으로 밀어 볼 수 있어요')); E.tblHint.style.display = 'none';
   E.tblHold = add(dt, h('div', 'bdgj4-tblwrap')); dt.style.display = 'none';
+  dt.addEventListener('toggle', checkTbl);
 
   // 5 담은 종목
   var s5 = add(root, h('div', 'bdgj4-sec')); E.sec5 = s5;
-  add(s5, h('h3', 'bdgj4-h2', '담은 종목'));
+  add(s5, h('h3', 'bdgj4-h2', TITLES[2]));
   E.bHead = add(s5, h('div', 'bdgj4-hint'));
-  E.bList = add(s5, h('div', ''));
+  E.bList = add(s5, h('div', 'bdgj4-bklist'));
   E.avgLine = add(s5, h('div', 'bdgj4-hint')); E.avgLine.style.display = 'none';
   E.bTools = add(s5, h('div', 'bdgj4-btns'));
   add(E.bTools, btn('', '예시 담기', addExample));
-  E.bClear = add(E.bTools, btn('', '모두 지우기', function(){ S.minR = 0; S.shown = 20; E.minR.value = ''; S.basket = []; S.customs = []; rebuildCustoms(); fixSel(); saveState(); renderAll(); }));
+  E.bClear = add(E.bTools, btn('bdgj4-ghost', '모두 지우기', function(){ S.minR = 0; S.shown = 20; E.minR.value = ''; S.basket = []; S.customs = []; rebuildCustoms(); fixSel(); saveState(); renderAll(); }));
   E.exNote = add(s5, h('div', 'bdgj4-hint'));
   E.goalBox = add(s5, h('div', 'bdgj4-box'));
   var lg2 = add(E.goalBox, h('label', 'bdgj4-lab', '목표: 담은 종목 그대로, 한 달 평균(세후) 얼마를 받고 싶나요?')); lg2.setAttribute('for', 'bdgj4-g2'); lg2.style.marginTop = '0';
@@ -515,35 +626,35 @@ function build(){
   var lc2 = add(dc, h('label', 'bdgj4-lab', '1년 배당률(세전, %)')); lc2.setAttribute('for', 'bdgj4-cr');
   E.cr = add(dc, h('input', 'bdgj4-inp bdgj4-sm')); E.cr.id = 'bdgj4-cr'; E.cr.type = 'text'; E.cr.setAttribute('inputmode', 'decimal'); E.cr.setAttribute('placeholder', '예: 4.5');
   add(dc, h('div', 'bdgj4-lab', '국내 / 미국(하나를 골라 주세요)')); E.cmk = null;
-  E.cmkChips = add(dc, h('div', 'bdgj4-chips'));
+  E.cmkChips = add(dc, h('div', 'bdgj4-chips bdgj4-seg'));
   add(dc, h('div', 'bdgj4-lab', '돈이 들어오는 달(여러 개)'));
   E.cmoChips = add(dc, h('div', 'bdgj4-chips')); E.cmo = {};
   E.cMsg = add(dc, h('div', 'bdgj4-warn')); E.cMsg.style.display = 'none';
-  add(dc, btn('bdgj4-pri', '내 종목 담기', addCustom)).style.marginTop = '8px';
+  add(dc, btn('', '내 종목 담기', addCustom)).style.marginTop = '8px';
   renderCustomForm();
 
   // 6 달력
   var s6 = add(root, h('div', 'bdgj4-sec')); E.sec6 = s6;
-  add(s6, h('h3', 'bdgj4-h2', '내 배당 달력'));
+  add(s6, h('h3', 'bdgj4-h2', TITLES[3]));
   E.calHint = add(s6, h('div', 'bdgj4-hint'));
-  E.cal = add(s6, h('div', 'bdgj4-cal'));
+  E.cal = add(add(s6, h('div', 'bdgj4-calw')), h('div', 'bdgj4-cal'));
   E.mdet = add(s6, h('div', 'bdgj4-mdet')); E.mdet.style.display = 'none';
   E.sum = add(s6, h('div', 'bdgj4-dl'));
   E.over = add(s6, h('div', 'bdgj4-warn')); E.over.style.display = 'none';
 
   // 7 섹터별
   var s7 = add(root, h('div', 'bdgj4-sec')); E.sec7 = s7;
-  add(s7, h('h3', 'bdgj4-h2', '섹터(업종)별 금액과 비중'));
+  add(s7, h('h3', 'bdgj4-h2', TITLES[4]));
   E.secBars = add(s7, h('div', ''));
   E.cycLine = add(s7, h('div', 'bdgj4-note'));
 
   // 8 안내
   var f = add(root, h('div', 'bdgj4-foot'));
-  add(f, h('p', '', '실제 입금액은 이 계산과 다를 수 있고, 투자 권유가 아니에요. 기준일과 출처는 맨 위 줄과 종목 상세에서 볼 수 있어요.'));
+  add(f, h('p', '', '실제 입금액은 이 계산과 다를 수 있고, 투자 권유가 아니에요. 기준일과 출처는 계산 결과 맨 아래 줄과 종목 상세에서 볼 수 있어요.'));
   add(f, h('p', '', '넣은 값은 이 기기 브라우저에만 저장돼요.'));
   var clrArm = false, clrTimer = null;
   function clrDisarm(){ clrArm = false; if (clrTimer) { clearTimeout(clrTimer); clrTimer = null; } E.clr.textContent = '저장한 값 지우기'; }
-  E.clr = add(f, btn('bdgj4-xs', '저장한 값 지우기', function(){
+  E.clr = add(f, btn('bdgj4-xs bdgj4-ghost', '저장한 값 지우기', function(){
     if (!clrArm) { clrArm = true; E.clr.textContent = '담은 종목과 넣은 값을 모두 지울까요? 한 번 더 누르면 지워요'; clrTimer = setTimeout(clrDisarm, 6000); return; }
     clrDisarm();
     clearState(); S.basket = []; S.customs = []; S.amt = DEF_AMT; S.sh = DEF_SH; S.mode = 'amt'; S.sel = itemOf('SCHD') ? 'SCHD' : DATA.items[0].tk; S.month = -1; S.minR = 0; S.shown = 20; E.minR.value = '';
@@ -580,8 +691,8 @@ function renderAll(){
 
 function renderBase(){
   var a = DATA.asof || {}, fx = DATA.fx, msgs = [], now = new Date();
-  var t = (a.px ? '배당률은 ' + md(a.px) + ' 종가 기준이에요.' : '배당률은 이 블로그가 종목 글(리뷰)을 쓴 날 주가로 계산했어요.') + ' 환율은 ' + comma(Math.round(fx)) + '원' + (a.fx ? '(' + md(a.fx) + ')' : '') + '이에요.';
-  E.base.textContent = t;
+  var t = (a.px ? '배당률은 ' + md(a.px) + ' 종가' : '배당률은 종목 글(리뷰)을 쓴 날 주가') + ', 환율은 ' + comma(Math.round(fx)) + '원' + (a.fx ? '(' + md(a.fx) + ')' : '') + ' 기준이에요.';
+  setM(E.base, t);
   if (a.px && (now - new Date(a.px + 'T00:00:00')) / 86400000 > 10) { msgs.push('배당률이 ' + md(a.px) + ' 값이에요.'); }
   if (a.fx && (now - new Date(a.fx + 'T00:00:00')) / 86400000 > 10) { msgs.push('환율이 ' + md(a.fx) + ' 값이에요.'); }
   E.stale.style.display = msgs.length ? '' : 'none';
@@ -601,7 +712,7 @@ function renderQuickInputs(){
   E.a1.value = v ? comma(v) : '';
 }
 
-function pickItem(it){ S.sel = it.tk; saveState(); E.sug.style.display = 'none'; E.q1.value = it.nm; renderQuick(); }
+function pickItem(it){ S.sel = it.tk; saveState(); E.sug.style.display = 'none'; E.q1.value = it.nm; renderQuick(); E.cards.classList.remove('bdgj4-go'); void E.cards.offsetWidth; E.cards.classList.add('bdgj4-go'); }
 function pickFirst(){
   var q = E.q1.value, it = itemOf(S.sel);
   if (!q.replace(/\s/g, '') || (it && q === it.nm)) { return false; }
@@ -633,13 +744,18 @@ function renderQuick(){
   if (!it) { return; }
   var base = itemOf(S.sel) || it;
   var tax = TAXP[it.tx] || '15.4%';
-  E.selNote.textContent = base.nm + (base.custom ? '' : ' (' + (MKN[base.mk] || '') + ' ' + base.sc + ', ' + cyText(base) + ')');
+  var cyn = CYN[base.cy];
+  E.tkCy.textContent = cyn || ''; E.tkCy.style.display = cyn ? '' : 'none';
+  E.tkNm.textContent = base.nm;
+  var sn;
+  if (base.custom) { sn = '직접 넣은 종목'; } else { sn = ((MKN[base.mk] || '') + ' ' + base.sc).replace(/^ +/, ''); var mt = /\((최근 1년 \d+번)\)/.exec(cyText(base)); if (mt) { sn += ', ' + mt[1]; } }
+  E.selNote.textContent = sn;
   var v = S.mode === 'amt' ? S.amt : S.sh;
-  E.amtHint.textContent = v ? (S.mode === 'amt' ? fmtWon(v) : comma(v) + '주') : (S.mode === 'amt' ? '투자금을 넣어 주세요.' : '주 수를 넣어 주세요.');
+  setM(E.amtHint, v ? (S.mode === 'amt' ? fmtWon(v) : comma(v) + '주') : (S.mode === 'amt' ? '투자금을 넣어 주세요.' : '주 수를 넣어 주세요.'));
   var p = v ? C.pay(it, { mode: S.mode, v: v }, DATA.fx) : null;
   var rateTxt = (it.r !== null && it.r !== undefined) ? it.r + '%' : '-';
   E.dl.innerHTML = '';
-  function row(a, b){ add(E.dl, h('span', '', a)); add(E.dl, h('span', '', b)); }
+  function row(a, b){ add(E.dl, h('span', '', a)); setM(add(E.dl, h('span', '')), b); }
   E.qMsg.style.display = 'none';
   if (!p) {
     E.cAvg.textContent = '-'; E.cYear.textContent = '-'; E.cRate.textContent = rateTxt;
@@ -658,8 +774,11 @@ function renderQuick(){
   if (it.cy !== 12 && it.cy !== 52 && it.mo) { notes.push('돈은 ' + monthsText(it) + '에 들어와요. 한 달 평균은 1년 치를 12로 나눈 값이에요.'); }
   if (notes.length) { var nl = add(E.dl, h('span', '', '참고')); nl.style.gridColumn = '1'; var nv = add(E.dl, h('span', '', notes.join(' '))); nv.style.textAlign = 'left'; nv.style.fontWeight = '400'; nv.style.gridColumn = '1 / -1'; }
   var inb = inBasket(base.tk) >= 0;
-  E.bAdd.textContent = inb ? (S.mode === 'amt' ? '담김 · 금액 바꾸기' : '담김 · 주 수 바꾸기') : '담기';
+  E.cAvg.className = 'bdgj4-card-v' + (E.cAvg.textContent.length >= 10 ? ' bdgj4-long' : '');
+  E.bAdd.className = 'bdgj4-btn bdgj4-add ' + (inb ? 'bdgj4-inb' : 'bdgj4-pri');
+  E.bAdd.textContent = inb ? (S.mode === 'amt' ? '담긴 금액 바꾸기' : '담긴 주 수 바꾸기') : '담기';
   renderGoalQuick();
+  fitAll();
 }
 
 function renderGoalQuick(){
@@ -667,7 +786,7 @@ function renderGoalQuick(){
   if (!it || !t) { E.gRes.textContent = '목표 금액을 넣으면 필요한 투자금이 나와요.'; return; }
   var qi = quickItems();
   var g = C.goal([{ key: it.tk, mode: 'amt', v: 10000000 }], qi.items, DATA.fx, t);
-  E.gRes.textContent = g > 0 ? '이 종목 하나로 받으려면 약 ' + fmtWon(g) + '이 필요해요(1만원 단위로 올림).' : '이 종목은 계산할 수 없어요.';
+  setM(E.gRes, g > 0 ? '이 종목 하나로 받으려면 약 ' + fmtWon(g) + '이 필요해요(1만원 단위로 올림).' : '이 종목은 계산할 수 없어요.');
 }
 
 function addQuick(){
@@ -701,26 +820,25 @@ function renderList(){
   E.list.innerHTML = ''; E.more.innerHTML = '';
   if (!list.length) { add(E.list, h('div', 'bdgj4-hint', '조건에 맞는 종목이 없어요. 고른 조건을 줄여 보세요.')); return; }
   list.slice(0, S.shown).forEach(function(it, ix){
-    var box = add(E.list, h('div', 'bdgj4-it'));
+    var box = add(E.list, h('div', 'bdgj4-it' + (S.open === it.tk ? ' bdgj4-open' : '')));
     var top = add(box, h('div', 'bdgj4-it-top')); top.setAttribute('role', 'button'); top.setAttribute('tabindex', '0'); top.setAttribute('aria-expanded', S.open === it.tk ? 'true' : 'false');
     add(top, h('span', 'bdgj4-rk', String(ix + 1)));
     add(top, h('span', 'bdgj4-nm', it.nm));
     add(top, h('span', 'bdgj4-rt', it.r + '%'));
     var has = inBasket(it.tk) >= 0;
-    var bb = add(top, btn('bdgj4-xs' + (has ? '' : ' bdgj4-pri'), has ? '담김' : '담기', function(e){ e.stopPropagation(); toggleBasket(it); }));
-    var ar = add(top, h('span', 'bdgj4-arw', S.open === it.tk ? '▴' : '▾')); ar.setAttribute('aria-hidden', 'true');
+    var bb = add(top, btn('bdgj4-xs' + (has ? ' bdgj4-inb' : ''), has ? '담김' : '담기', function(e){ e.stopPropagation(); toggleBasket(it); }));
     function tog(){ S.open = S.open === it.tk ? null : it.tk; renderList(); }
     top.addEventListener('click', tog);
     top.addEventListener('keydown', function(e){ if ((e.key === 'Enter' || e.key === ' ') && e.target === top) { e.preventDefault(); tog(); } });
     var subTxt = it.sc + ', ' + cyText(it) + ', ' + monthsText(it) + (it.rd ? ', ' + md(it.rd) + ' 기준' : '');
-    add(box, h('div', 'bdgj4-it-sub', subTxt));
+    var sub = add(box, h('div', 'bdgj4-it-sub', subTxt)); var ar = add(sub, h('span', 'bdgj4-arw')); ar.setAttribute('aria-hidden', 'true'); sub.addEventListener('click', tog);
     if (S.open === it.tk) { box.appendChild(detailOf(it)); }
   });
-  if (list.length > S.shown) { add(E.more, btn('bdgj4-xs', '더 보기 (' + (list.length - S.shown) + '개 더)', function(){ S.shown += 20; renderList(); })).style.marginTop = '8px'; }
+  if (list.length > S.shown) { add(E.more, btn('bdgj4-xs bdgj4-ghost', '더 보기 (' + (list.length - S.shown) + '개 더)', function(){ S.shown += 20; renderList(); })).style.marginTop = '8px'; }
 }
 function detailOf(it){
   var d = h('div', 'bdgj4-it-det'); var miss = false;
-  function line(a, b){ add(d, h('div', '', a + ' : ' + b)); }
+  function line(a, b){ var kv = add(d, h('div', 'bdgj4-kv')); add(kv, h('span', '', a)); add(kv, h('span', '', b)); }
   line('주기', cyText(it));
   line('지급 달', monthDates(it));
   if (it.la !== null && it.la !== undefined) { add(d, h('div', '', '최근 배당금(주식 1주에 ' + (it.cur === 'USD' ? it.la + '달러' : fmtWon(it.la)) + ')')); } else { miss = true; }
@@ -735,7 +853,7 @@ function detailOf(it){
   var bt = add(d, h('div', 'bdgj4-btns'));
   if (it.n) { var a = h('a', 'bdgj4-btn bdgj4-xs', '리뷰 글 보기'); a.href = BLOG + it.n; a.target = '_blank'; a.rel = 'noopener'; a.style.textDecoration = 'none'; a.style.display = 'inline-flex'; a.style.alignItems = 'center'; bt.appendChild(a); }
   var has = inBasket(it.tk) >= 0;
-  add(bt, btn('bdgj4-xs' + (has ? '' : ' bdgj4-pri'), has ? '담김' : '담기', function(){ toggleBasket(it); }));
+  add(bt, btn('bdgj4-xs' + (has ? ' bdgj4-inb' : ''), has ? '담김' : '담기', function(){ toggleBasket(it); }));
   return d;
 }
 function fixSel(){ if (!itemOf(S.sel)) { S.sel = itemOf('SCHD') ? 'SCHD' : (DATA.items[0] ? DATA.items[0].tk : ''); } }
@@ -768,16 +886,17 @@ function renderBasket(){
     var box = add(E.bList, h('div', 'bdgj4-bk'));
     var top = add(box, h('div', 'bdgj4-bk-top'));
     add(top, h('span', 'bdgj4-bk-nm', it.nm));
-    add(top, btn('bdgj4-xs', '빼기', function(){ removeAt(idx); }));
+    add(top, btn('bdgj4-xs bdgj4-ghost', '빼기', function(){ removeAt(idx); }));
     var row = add(box, h('div', 'bdgj4-bk-row'));
-    add(row, chip('금액', b.mode === 'amt', function(){ if (b.mode !== 'amt') { b.mode = 'amt'; b.v = 0; } saveState(); renderBasket(); renderViews(); }));
-    add(row, chip('주 수', b.mode === 'sh', function(){ if (b.mode !== 'sh') { b.mode = 'sh'; b.v = 0; } saveState(); renderBasket(); renderViews(); }));
+    var sg = add(row, h('span', 'bdgj4-seg'));
+    add(sg, chip('금액', b.mode === 'amt', function(){ if (b.mode !== 'amt') { b.mode = 'amt'; b.v = 0; } saveState(); renderBasket(); renderViews(); }));
+    add(sg, chip('주 수', b.mode === 'sh', function(){ if (b.mode !== 'sh') { b.mode = 'sh'; b.v = 0; } saveState(); renderBasket(); renderViews(); }));
     var inp = add(row, h('input', 'bdgj4-inp bdgj4-sm')); inp.type = 'text'; inp.setAttribute('inputmode', 'numeric'); inp.value = b.v > 0 ? comma(b.v) : ''; inp.setAttribute('placeholder', b.mode === 'amt' ? '금액(원)' : '주 수'); inp.setAttribute('aria-label', it.nm + (b.mode === 'amt' ? ' 금액(원)' : ' 주 수'));
     add(row, h('span', '', b.mode === 'amt' ? '원' : '주'));
     var res = add(box, h('div', 'bdgj4-bk-res'));
     function upd(){
       var p = C.pay(it, b, DATA.fx);
-      res.textContent = p ? '1년 세후 ' + fmtWon(p.post) : (b.v > 0 ? '1주당 배당금 자료가 없어 주 수로는 계산이 안 돼요. 금액으로 바꿔 주세요.' : (b.mode === 'amt' ? '금액을 넣어 주세요.' : '주 수를 넣어 주세요.'));
+      setM(res, p ? '1년 세후 ' + fmtWon(p.post) : (b.v > 0 ? '1주당 배당금 자료가 없어 주 수로는 계산이 안 돼요. 금액으로 바꿔 주세요.' : (b.mode === 'amt' ? '금액을 넣어 주세요.' : '주 수를 넣어 주세요.')));
     }
     upd();
     inp.addEventListener('input', function(){
@@ -795,7 +914,7 @@ function renderGoalBasket(){
   if (!bk.length) { E.g2Res.textContent = ''; return; }
   if (!t) { E.g2Res.textContent = '목표 금액을 넣으면 지금 담은 비율 그대로 필요한 총 금액이 나와요.'; return; }
   var g = C.goal(bk, allItems(), DATA.fx, t);
-  E.g2Res.textContent = g > 0 ? '지금 담은 비율 그대로면 총 약 ' + fmtWon(g) + '이 필요해요(1만원 단위로 올림).' : '계산할 수 없어요. 금액이나 주 수를 확인해 주세요.';
+  setM(E.g2Res, g > 0 ? '지금 담은 비율 그대로면 총 약 ' + fmtWon(g) + '이 필요해요(1만원 단위로 올림).' : '계산할 수 없어요. 금액이나 주 수를 확인해 주세요.');
 }
 function addExample(){
   EX_KEYS.forEach(function(k){ if (itemOf(k) && inBasket(k) < 0) { S.basket.push({ key: k, mode: 'amt', v: DEF_AMT }); } });
@@ -825,7 +944,7 @@ function addCustom(){
 function renderAvg(){
   var a = C.avgRate(validBasket(), allItems(), DATA.fx);
   if (a.rate === null) { E.avgLine.style.display = 'none'; E.avgLine.textContent = ''; return; }
-  E.avgLine.textContent = '담은 비율대로 평균 배당률(세전) ' + a.rate.toFixed(1) + '%' + (a.skipped > 0 ? ' · ' + a.skipped + '개는 금액을 몰라 뺐어요' : '');
+  E.avgLine.textContent = '담은 비율대로 평균 배당률(세전) ' + a.rate.toFixed(1) + '%' + (a.skipped > 0 ? '. ' + a.skipped + '개는 금액을 몰라 뺐어요' : '');
   E.avgLine.style.display = '';
 }
 function renderViews(){ renderCalendar(); renderSector(); renderBand(); renderAvg(); }
@@ -833,10 +952,12 @@ function renderCalendar(){
   var bk = validBasket(), items = allItems(), cal = C.calendar(bk, items, DATA.fx), s = C.summary(cal), m;
   E.cal.innerHTML = '';
   E.calHint.textContent = bk.length ? '달을 누르면 어떤 종목이 들어오는지 보여요. 똑같이 나눈 달도 1원 단위로 맞추느라 1원쯤 차이 날 수 있어요.' : '종목을 담으면 달력이 채워져요. 위에서 "담기"나 "예시 담기"를 눌러 보세요.';
+  var mx = 0; for (m = 0; m < 12; m++) { if (cal[m].post > mx) { mx = cal[m].post; } }
   for (m = 0; m < 12; m++) {
     (function(m){
       var c = cal[m], has = c.list.length > 0;
       var b = h('button', 'bdgj4-cell' + (has ? ' bdgj4-has' : '') + (S.month === m ? ' bdgj4-sel' : '')); b.type = 'button'; b.setAttribute('aria-pressed', S.month === m ? 'true' : 'false');
+      b.style.setProperty('--v', (has && mx > 0 ? Math.max(8, Math.round(c.post / mx * 100)) : 0) + '%');
       add(b, h('b', '', (m + 1) + '월'));
       if (has) { add(b, h('span', 'bdgj4-amt', fmtWon(c.post))); add(b, h('span', '', c.list.length + '종목')); }
       else { add(b, h('span', 'bdgj4-void', bk.length ? '들어오는 배당 없음' : '')); }
@@ -844,17 +965,18 @@ function renderCalendar(){
       E.cal.appendChild(b);
     })(m);
   }
+  fitCal();
   if (S.month >= 0 && bk.length) {
     var c2 = cal[S.month]; E.mdet.innerHTML = ''; E.mdet.style.display = '';
     add(E.mdet, h('div', 'bdgj4-lab', (S.month + 1) + '월 들어오는 배당(세후)')).style.marginTop = '0';
     if (!c2.list.length) { add(E.mdet, h('div', '', '들어오는 배당 없음')); }
-    c2.list.forEach(function(x){ add(E.mdet, h('div', '', x.nm + ', ' + (x.day ? x.day + '일쯤' : '날짜 미정') + ', 세후 ' + fmtWon(x.post))); });
+    c2.list.forEach(function(x){ setM(add(E.mdet, h('div', '')), x.nm + ', ' + (x.day ? x.day + '일쯤' : '날짜 미정') + ', 세후 ' + fmtWon(x.post)); });
   } else { E.mdet.style.display = 'none'; }
   E.sum.innerHTML = '';
   if (!bk.length) { E.over.style.display = 'none'; return; }
   var maxM = -1, minM = -1, i;
   for (i = 0; i < 12; i++) { if (cal[i].list.length) { if (maxM < 0 || cal[i].post > cal[maxM].post) { maxM = i; } if (minM < 0 || cal[i].post < cal[minM].post) { minM = i; } } }
-  function row(a, b){ add(E.sum, h('span', '', a)); add(E.sum, h('span', '', b)); }
+  function row(a, b){ add(E.sum, h('span', '', a)); setM(add(E.sum, h('span', '')), b); }
   row('1년 세전', fmtWon(s.preY)); row('1년 세후', fmtWon(s.postY)); row('한 달 평균(세후)', fmtWon(s.postY / 12));
   row('가장 많은 달', maxM >= 0 ? (maxM + 1) + '월 ' + fmtWon(cal[maxM].post) : '-');
   row('가장 적은 달(들어오는 달 가운데)', minM >= 0 ? (minM + 1) + '월 ' + fmtWon(cal[minM].post) : '-');
@@ -881,7 +1003,7 @@ function renderBand(){
   var bk = validBasket();
   if (!bk.length) { E.band.style.display = 'none'; return; }
   var cal = C.calendar(bk, allItems(), DATA.fx), s = C.summary(cal);
-  E.bandT.textContent = '담은 ' + bk.length + '종목, 1년 세후 ' + fmtWon(s.postY);
+  E.bandT.innerHTML = ''; add(E.bandT, h('span', '', '담은 ' + bk.length + '종목, 1년 세후')); add(E.bandT, h('span', 'bdgj4-band-a', fmtWon(s.postY)));
   E.band.style.display = '';
 }
 
@@ -889,7 +1011,7 @@ function renderBand(){
 function tryMove(){
   var t = document.getElementById('bdgj4-table');
   if (!t || !E.tblHold || E.tblHold.contains(t)) { return; }
-  E.tblHold.appendChild(t); E.tblDet.style.display = '';
+  E.tblHold.appendChild(t); E.tblDet.style.display = ''; checkTbl();
 }
 function fetchNew(){
   if (typeof fetch !== 'function') { return; }
